@@ -1,3 +1,6 @@
+0.05	28 December 2003
+	Added automatic required modules update using Devel::Required.
+
 0.04	30 August 2003
 	Raised dependency on Thread::Exit to 0.06 because of bug fix there.
 	Changed test-suite to test for fixed problem in Thread::Exit.

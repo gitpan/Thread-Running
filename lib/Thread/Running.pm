@@ -3,7 +3,7 @@ package Thread::Running;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 use strict;
 
 # Only load the things we need on demand
@@ -351,6 +351,11 @@ without parameters, it will only check the thread associated with the object.
 In list context it returns the thread ID's of the threads that have exited.
 In scalar context, it just returns 1 or 0 to indicate whether B<all> of the
 (implicitely) indicated threads have exited.
+
+=head1 REQUIRED MODULES
+
+ load (any)
+ Thread::Exit (0.06)
 
 =head1 CAVEATS
 
