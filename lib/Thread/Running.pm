@@ -3,7 +3,7 @@ package Thread::Running;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-$VERSION = '0.05';
+$VERSION = '0.07';
 use strict;
 
 # Only load the things we need on demand
@@ -17,7 +17,8 @@ use threads ();
 use threads::shared ();
 
 # Shared hash for keeping exited threads
-#  undef = thread started
+#  ''    = thread did not start at all
+#  undef = thread started successfully
 #  0     = thread detached
 #  1     = undetached thread exited
 #  2     = thread joined or detached thread exited
@@ -27,10 +28,6 @@ our %status : shared;
 # Enable Thread::Exit with thread marking stuff
 
 use Thread::Exit
-
-# Mark the thread as started 
-
-    begin => sub { $status{threads->tid} = undef },
 
 # Obtain the thread ID
 # Set to joined if marked as detached, else as undetached exited
@@ -43,17 +40,25 @@ use Thread::Exit
 
 # Make sure we do this before anything else
 #  Allow for dirty tricks
+
+BEGIN {
+    no strict 'refs'; no warnings 'redefine';
+    my $new = \&threads::new; # closure!
+    *threads::new = *threads::create = sub {
+        my $thread = $new->( @_ );
+        $status{$thread->tid} = undef;
+        $thread;
+    };
+
 #  Keep reference to current detach routine
 #  Hijack the thread detach routine with a sub that sets detached status
 #  Keep reference to current join routine
 #  Hijack the thread join routine with a sub that sets joined status
 
-BEGIN {
-    no strict 'refs'; no warnings 'redefine';
     my $detach = \&threads::detach; # closure!
-    *threads::detach = sub { $status{$_[0]->tid} = 0; goto &$detach };
+    *threads::detach = sub { $status{$_[0]->tid} = 0; return &$detach };
     my $join = \&threads::join; #closure!
-    *threads::join = sub { $status{$_[0]->tid} = 2; goto &$join };
+    *threads::join = sub { $status{$_[0]->tid} = 2; return &$join };
 } #BEGIN
 
 # Satisfy -require-
@@ -75,7 +80,7 @@ sub threads::running {
 # Go do the actual check
 
     shift unless ref $_[0];
-    goto &running;
+    return &running;
 } #threads::running
 
 #---------------------------------------------------------------------------
@@ -89,7 +94,7 @@ sub threads::tojoin {
 # Go do the actual check
 
     shift unless ref $_[0];
-    goto &tojoin;
+    return &tojoin;
 } #threads::tojoin
 
 #---------------------------------------------------------------------------
@@ -103,7 +108,7 @@ sub threads::exited {
 # Go do the actual check
 
     shift unless ref $_[0];
-    goto &exited;
+    return &exited;
 } #threads::exited
 
 #---------------------------------------------------------------------------
@@ -377,7 +382,7 @@ Please report bugs to <perlbugs@dijkmat.nl>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2003 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
+Copyright (c) 2003-2005 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
 reserved.  This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 

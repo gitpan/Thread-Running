@@ -20,10 +20,9 @@ my $sleep = 2;
 my $threads = 5;
 
 my $thread = threads->new( sub { sleep $sleep } );
-my $tid = $thread->tid;
-sleep 1 until $thread->running;
-ok( 1,'thread is running' );
+ok( scalar $thread->running,'thread is running' );
 
+my $tid = $thread->tid;
 is( $thread->running,"1", "check running by thread" );
 is( scalar threads->running( $tid ),"1", "check running by tid" );
 
