@@ -1,2 +1,10 @@
-0.01	15 August 2002
-	First version of Thread::Exited.
+0.02	16 August 2003
+	Now allows running, tojoin and exited to be used as instance methods.
+	Added internal subroutines _listall() and _tid2object.
+
+	Fixed test-suite: it would fail sometimes when it shouldn't.
+
+	Fixed some documentation errors.
+
+0.01	15 August 2003
+	First version of Thread::Running.

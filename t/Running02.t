@@ -5,7 +5,7 @@ BEGIN {				# Magic Perl CORE pragma
     }
 }
 
-use Test::More tests => 14;
+use Test::More tests => 18;
 use strict;
 use warnings;
 
@@ -16,15 +16,19 @@ can_ok( 'main',qw(
  exited
 ) );
 
-my $sleep = 3;
+my $sleep = 2;
 my $threads = 5;
 
 my $thread = threads->new( sub { sleep $sleep } );
 my $tid = $thread->tid;
+sleep 1 until $thread->running;
+ok( 1,'thread is running' );
+
 is( scalar running( $thread ),"1", "check running by thread" );
 is( scalar running( $tid ),"1", "check running by tid" );
 
-sleep $sleep+1+1;   # allow for a little margin
+sleep 1 until $thread->tojoin;
+ok( 1,'thread can be joined' );
 
 is( scalar exited( $thread ),"1", "check exited by thread" );
 is( scalar exited( $tid ),"1", "check exited by tid" );
@@ -38,12 +42,15 @@ my @thread;
 foreach (1..$threads) {
     push @thread,threads->new( sub { sleep $sleep } );
 }
-
 my @tid = map { $_->tid } @thread;
+sleep 1 until (() = threads->running( @thread )) == @tid;
+ok( 1,'all threads are running' );
+
 is( "@{[running( @thread )]}","@tid", "check running by threads" );
 is( "@{[running( @tid )]}","@tid", "check running by tids" );
 
-sleep $sleep+$threads+1;   # allow for a little margin
+sleep 1 until (() = threads->tojoin( @thread )) == @tid;
+ok( 1,'all threads can be joined' );
 
 is( "@{[exited( @thread )]}","@tid", "check exited by threads" );
 is( "@{[exited( @tid )]}","@tid", "check exited by tids" );
