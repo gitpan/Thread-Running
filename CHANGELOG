@@ -1,3 +1,7 @@
+0.04	30 August 2003
+	Raised dependency on Thread::Exit to 0.06 because of bug fix there.
+	Changed test-suite to test for fixed problem in Thread::Exit.
+
 0.03	23 August 2003
 	Now uses load.pm to reduce the number of subroutines loaded at compile
 	time.  The status hash is now also available externally, which may or

@@ -9,6 +9,6 @@ WriteMakefile (
  VERSION_FROM	=> 'lib/Thread/Running.pm',
  PREREQ_PM	=> {
 		   load => 0,
-		   Thread::Exit => '0.05',
+		   Thread::Exit => '0.06',
                    },
 );

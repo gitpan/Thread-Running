@@ -3,7 +3,7 @@ package Thread::Running;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 use strict;
 
 # Only load the things we need on demand
@@ -357,6 +357,9 @@ In scalar context, it just returns 1 or 0 to indicate whether B<all> of the
 This module is dependent on the L<Thread::Exit> module, with all of its
 CAVEATS applicable.
 
+This module uses the L<load> module to make sure that subroutines are loaded
+only when they are needed.
+
 =head1 TODO
 
 Examples should be added.
@@ -375,6 +378,6 @@ modify it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
-L<threads>, L<Thread::Exit>.
+L<threads>, L<Thread::Exit>, L<load>.
 
 =cut

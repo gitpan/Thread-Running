@@ -19,7 +19,7 @@ can_ok( 'main',qw(
 my $sleep = 2;
 my $threads = 5;
 
-my $thread = threads->new( sub { sleep $sleep } );
+my $thread = threads->create( sub { sleep $sleep } );
 my $tid = $thread->tid;
 sleep 1 until $thread->running;
 ok( 1,'thread is running' );
@@ -40,7 +40,7 @@ $thread->join;
 
 my @thread;
 foreach (1..$threads) {
-    push @thread,threads->new( sub { sleep $sleep } );
+    push @thread,threads->create( sub { sleep $sleep } );
 }
 my @tid = map { $_->tid } @thread;
 sleep 1 until (() = threads->running( @thread )) == @tid;
