@@ -3,8 +3,12 @@ package Thread::Running;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 use strict;
+
+# Only load the things we need on demand
+
+use load;
 
 # Make sure we can do threads
 # Make sure we can do shared variables
@@ -18,7 +22,7 @@ use threads::shared ();
 #  1     = undetached thread exited
 #  2     = thread joined or detached thread exited
 
-my %status : shared;
+our %status : shared;
 
 # Enable Thread::Exit with thread marking stuff
 
@@ -37,105 +41,24 @@ use Thread::Exit
     },
 ;
 
-# Thread local reference to original threads::detach (set in BEGIN)
-# Thread local reference to original threads::join (set in BEGIN)
-
-my $detach;
-my $join;
-
 # Make sure we do this before anything else
 #  Allow for dirty tricks
 #  Keep reference to current detach routine
-#  Hijack the thread detach routine with a sub that unsets the flag
+#  Hijack the thread detach routine with a sub that sets detached status
 #  Keep reference to current join routine
-#  Hijack the thread join routine with a sub that unsets the flag
+#  Hijack the thread join routine with a sub that sets joined status
 
 BEGIN {
     no strict 'refs'; no warnings 'redefine';
-    $detach = \&threads::detach;
+    my $detach = \&threads::detach; # closure!
     *threads::detach = sub { $status{$_[0]->tid} = 0; goto &$detach };
-    $join = \&threads::join;
+    my $join = \&threads::join; #closure!
     *threads::join = sub { $status{$_[0]->tid} = 2; goto &$join };
 } #BEGIN
 
 # Satisfy -require-
 
 1;
-
-#---------------------------------------------------------------------------
-
-# The subroutines
-
-#---------------------------------------------------------------------------
-#  IN: 1..N thread (ID's) that should be checked (default: all)
-# OUT: 1..N thread ID's that are still running
-
-sub running {
-
-# For all of the threads specified
-#  Make sure we have a thread ID
-#  Reloop if we haven't seen this thread start or it has exited already
-#  Return with succes now if in scalar context
-#  Add thread ID to list
-# Return list of thread ID's that have exited
-
-    my @tid;
-    foreach (@_ ? @_ : _listall()) {
-        my $tid = ref( $_ ) ? $_->tid : $_;
-        next if !exists $status{$tid} or $status{$tid};
-        return 1 unless wantarray;
-        push @tid,$tid;
-    }
-    @tid;
-} #running
-
-#---------------------------------------------------------------------------
-#  IN: 1..N thread (ID's) that should be checked (default: all)
-# OUT: 1..N threads that can be joined
-
-sub tojoin {
-
-# For all of the threads specified
-#  Reloop if this thread is not ready to be joined
-#  Return with succes now if in scalar context
-#  Add thread ID to list if exited
-# Return the appropriate objects
-
-    my @tid;
-    foreach (@_ ? @_ : _listall( 1 )) {
-        my $tid = ref( $_ ) ? $_->tid : $_;
-        next unless ($status{$tid} || 0) == 1;
-        return 1 unless wantarray;
-        push @tid,$tid;
-    }
-    _tid2object( @tid );
-} #tojoin
-
-#---------------------------------------------------------------------------
-#  IN: 1..N thread ID's that should be checked (default: all)
-# OUT: 1..N threads that exited
-
-sub exited {
-
-# Set the threads to work on
-# Return success if scalar context and nothing to check
-
-    @_ = _listall() unless @_;
-    return 1 unless wantarray or @_;
-
-# For all of the threads specified
-#  Return with failure now if in scalar context and not exited
-#  Add thread ID to list if exited
-# Return list of thread ID's that have exited or flag if all
-
-    my @tid;
-    foreach (@_) {
-        my $tid = ref( $_ ) ? $_->tid : $_;
-        return 0 unless wantarray or $status{$tid};
-        push @tid,$tid;
-    }
-    return wantarray ? @tid : @tid == @_;
-} #exited
 
 #---------------------------------------------------------------------------
 
@@ -185,6 +108,93 @@ sub threads::exited {
 
 #---------------------------------------------------------------------------
 
+# The following subroutines are loaded only when they are needed
+
+__END__
+
+#---------------------------------------------------------------------------
+
+# The subroutines
+
+#---------------------------------------------------------------------------
+#  IN: 1..N thread (ID's) that should be checked (default: all)
+# OUT: 1..N thread ID's that are still running
+
+sub running {
+
+# For all of the threads specified
+#  Make sure we have a thread ID
+#  Reloop if we haven't seen this thread start or it has exited already
+#  Return with succes now if in scalar context
+#  Add thread ID to list
+# Return list of thread ID's that have exited
+
+    my @tid;
+    foreach (@_ ? @_ : _listall()) {
+        my $tid = ref( $_ ) ? $_->tid : $_;
+        next if !exists $status{$tid} or $status{$tid};
+        return 1 unless wantarray;
+        push @tid,$tid;
+    }
+    @tid;
+} #running
+
+#---------------------------------------------------------------------------
+#  IN: 1..N thread (ID's) that should be checked (default: all)
+# OUT: 1..N threads that can be joined
+
+sub tojoin {
+
+# For all of the threads specified
+#  Reloop if this thread is not ready to be joined
+#  Return with succes now if in scalar context
+#  Add thread ID to list if exited
+# Return now if there are no objects
+
+    my @tid;
+    foreach (@_ ? @_ : _listall( 1 )) {
+        my $tid = ref( $_ ) ? $_->tid : $_;
+        next unless ($status{$tid} || 0) == 1;
+        return 1 unless wantarray;
+        push @tid,$tid;
+    }
+    return () unless @tid;
+
+# Create hash of thread objects keyed to thread ID's
+# Return the appropriate objects
+
+    my %thread = map { $_->tid => $_ } threads->list;
+    @thread{@tid};
+} #tojoin
+
+#---------------------------------------------------------------------------
+#  IN: 1..N thread ID's that should be checked (default: all)
+# OUT: 1..N threads that exited
+
+sub exited {
+
+# Set the threads to work on
+# Return success if scalar context and nothing to check
+
+    @_ = _listall() unless @_;
+    return 1 unless wantarray or @_;
+
+# For all of the threads specified
+#  Return with failure now if in scalar context and not exited
+#  Add thread ID to list if exited
+# Return list of thread ID's that have exited or flag if all
+
+    my @tid;
+    foreach (@_) {
+        my $tid = ref( $_ ) ? $_->tid : $_;
+        return 0 unless wantarray or $status{$tid};
+        push @tid,$tid;
+    }
+    return wantarray ? @tid : @tid == @_;
+} #exited
+
+#---------------------------------------------------------------------------
+
 # Methods needed by Perl
 
 #---------------------------------------------------------------------------
@@ -201,7 +211,7 @@ sub import {
 
     shift;
     my $namespace = (scalar caller() ).'::';
-    @_ = qw(exited listall running tojoin) unless @_;
+    @_ = qw(exited running tojoin) unless @_;
     no strict 'refs';
     *{$namespace.$_} = \&$_ foreach @_;
 } #import
@@ -227,21 +237,6 @@ sub _listall {
 } #_listall
 
 #---------------------------------------------------------------------------
-#  IN: 1..N thread ID's
-# OUT: 1..N thread objects
-
-sub _tid2object {
-
-# Return now if nothing found
-# Create hash of thread objects keyed to thread ID's
-# Return list of thread objects
-
-    return () unless @_;
-    my %thread = map { $_->tid => $_ } threads->list;
-    @thread{@_};
-} #_tid2object
-
-#---------------------------------------------------------------------------
 
 __END__
 
@@ -253,7 +248,7 @@ Thread::Running - provide non-blocking check whether threads are running
 
     use Thread::Running;      # exports running(), exited() and tojoin()
     use Thread::Running qw(running);   # only exports running()
-    use Thread::Running ();   # threads class methods only
+    use Thread::Running ();   # threads methods only
 
     my $thread = threads->new( sub { whatever } );
     while ($thread->running) {
@@ -283,9 +278,9 @@ This module adds three features to threads that are sorely missed by some:
 you can check whether a thread is running, whether it can be joined or whether
 it has exited without waiting for that thread to be finished (non-blocking).
 
-=head1 CLASS METHODS
+=head1 METHODS
 
-These are the class methods.
+These are the methods.
 
 =head2 running
 
@@ -331,7 +326,7 @@ without parameters, it will only check the thread associated with the object.
 
 In list context it returns thread objects of the threads that can be joined.
 In scalar context, it just returns 1 or 0 to indicate whether any of the
-(implicitely) indicated threads is can be joined.
+(implicitely) indicated threads can be joined.
 
 =head2 exited
 

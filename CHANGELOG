@@ -1,3 +1,17 @@
+0.03	23 August 2003
+	Now uses load.pm to reduce the number of subroutines loaded at compile
+	time.  The status hash is now also available externally, which may or
+	may not be a good thing.  Added dependency to load.pm.
+
+	Changed some package lexicals in to closures.
+
+	Oops, t/Running03.t wasn't included in the manifest and therefore
+	not included in the distribution.  Now it is.
+
+	Fixed some documentation errors.
+
+	Removed non-existing "listall" from the default export list.
+
 0.02	16 August 2003
 	Now allows running, tojoin and exited to be used as instance methods.
 	Added internal subroutines _listall() and _tid2object.
